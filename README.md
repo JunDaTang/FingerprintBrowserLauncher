@@ -1,6 +1,6 @@
 # FingerprintBrowserLauncher
 
-一个面向 `fingerprint-chromium` 或定制 Chromium 的 Windows 启动器。
+一个以 [`fingerprint-chromium`](https://github.com/adryfish/fingerprint-chromium) 为主要使用场景的 Windows 启动器。
 
 它主要解决这几件事：
 
@@ -12,15 +12,31 @@
 
 ---
 
-## 这项目适合谁？
+## 项目定位
 
-如果你在用带自定义参数的 Chromium / 指纹浏览器，这个项目会比较适合你。常见参数例如：
+这个项目**主要面向 `fingerprint-chromium` 用户**。
+
+也就是说，它默认假设你使用的是这类支持类似参数模型的 Chromium 变体，例如：
 
 - `--fingerprint=...`
 - `--user-data-dir=...`
 - `--lang=...`
 - `--accept-lang=...`
 - `--timezone=...`
+
+如果你使用的是普通 Chrome / Chromium，也不是完全不能用，但你需要自己确认：
+
+- 你的浏览器是否支持这些参数
+- 这些参数是否真的会生效
+- 某些指纹相关行为是否由浏览器分支本身实现
+
+换句话说：
+
+**这是一个围绕 `fingerprint-chromium` 使用方式设计的启动器，不是给普通 Chrome 做的通用包装壳。**
+
+---
+
+## 这项目适合谁？
 
 典型场景：
 
@@ -102,7 +118,7 @@ dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=
 - 创建 `dist\`
 - 把编译好的 exe 复制到 `dist\`
 - 把 `config.json` 复制到 `dist\`（如果目标目录里还没有）
-- 自动生成本机路径版的 `Register-FingerprintBrowser.reg`
+- 自动生成本机路径版的注册表文件
 
 如果你还想让它顺手导入注册表：
 
@@ -116,7 +132,7 @@ dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=
 .\Install.ps1 -TargetDir "C:\\Tools\\FingerprintBrowserLauncher" -ImportRegistry
 ```
 
-对于不想手改 `.reg` 的用户，这个方式更推荐。
+对于不想手改注册表的用户，这个方式更推荐。
 
 ---
 
@@ -234,6 +250,28 @@ FingerprintBrowserLauncher/
 
 ---
 
+## 与 `fingerprint-chromium` 的关系
+
+这个项目本身不是浏览器内核，也不负责实现指纹伪装逻辑。
+
+它做的是：
+
+- 组织配置
+- 选择 profile
+- 启动浏览器
+- 转发 URL
+- 帮你接入 Windows 默认浏览器链路
+
+而真正的指纹相关能力是否生效，仍然取决于你使用的浏览器本体。
+
+如果你正在使用：
+
+- <https://github.com/adryfish/fingerprint-chromium>
+
+那么本项目就是围绕这类用法设计的辅助启动器。
+
+---
+
 ## 手动指定 profile
 
 如果你不想自动识别，也可以手动强制指定某个 profile：
@@ -276,7 +314,7 @@ FingerprintBrowserLauncher.exe --profile hk https://browserscan.net/
 
 ## Windows 默认浏览器注册
 
-这个项目现在**不再维护静态 `.reg` 示例文件**。
+这个项目现在不再维护静态 `.reg` 示例文件。
 
 推荐方式是直接使用：
 
@@ -311,7 +349,7 @@ FingerprintBrowserLauncher.exe --profile hk https://browserscan.net/
 
 - `config.json`
 
-如果你更换了安装目录，建议重新运行一次 `Install.ps1`，让它重新生成对应路径的注册表。 
+如果你更换了安装目录，建议重新运行一次 `Install.ps1`，让它重新生成对应路径的注册表。
 
 ---
 
@@ -359,7 +397,7 @@ FingerprintBrowserLauncher.exe https://browserscan.net/
 这通常不是启动器本身的问题，而是 Clash / 代理 / 网络层配置问题。
 
 ### Windows 默认应用里看不到这个启动器
-确认你已经导入了生成后的 `.reg`，然后重新打开默认应用页面再看。
+确认你已经导入了由 `Install.ps1` 生成的注册表，然后重新打开默认应用页面再看。
 
 ---
 
@@ -383,6 +421,16 @@ FingerprintBrowserLauncher.exe https://browserscan.net/
 ```
 
 先把单 profile 跑通，再逐步加复杂度，会舒服很多。
+
+---
+
+## 自动构建
+
+仓库已配置 GitHub Actions 自动构建 Windows x64 单文件版本。
+
+每次 push 到 `main` 或创建 PR 时，都会自动执行构建。
+
+如果你只是想先试用项目，也可以直接去 GitHub Actions / Artifacts 查看构建产物。
 
 ---
 
