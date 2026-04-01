@@ -89,6 +89,37 @@ dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=
 
 ---
 
+## Easier install for new users
+
+If you already built the project, you can use the installer script to prepare a runnable folder and generate a machine-specific registry file:
+
+```powershell
+.\Install.ps1
+```
+
+This will:
+
+- create `dist\` if needed
+- copy the built exe into `dist\`
+- copy `config.json` into `dist\` if it does not already exist
+- generate a `Register-FingerprintBrowser.reg` file with your local exe path
+
+If you also want it to import the registry file automatically:
+
+```powershell
+.\Install.ps1 -ImportRegistry
+```
+
+You can also choose a custom install directory:
+
+```powershell
+.\Install.ps1 -TargetDir "C:\\Tools\\FingerprintBrowserLauncher" -ImportRegistry
+```
+
+This is the recommended path for people who do not want to edit the `.reg` file by hand.
+
+---
+
 ## First-time setup checklist
 
 Before expecting this project to work, confirm all of the following:
@@ -131,6 +162,7 @@ FingerprintBrowserLauncher/
   Program.cs
   config.example.json
   config.json
+  Install.ps1
   Register-FingerprintBrowser.reg
   Launch-FingerprintBrowser.ps1
   Launch-FingerprintBrowser.bat
@@ -246,25 +278,25 @@ The repository includes a sample registry file:
 
 - `Register-FingerprintBrowser.reg`
 
-### Important
+### Recommended approach
 
-This file contains a **machine-specific path** and is only a starting example.
+Use `Install.ps1` to generate a machine-specific `.reg` file automatically.
 
-Before importing it, you must update it to match your own executable location, for example:
+### Manual approach
+
+If you edit the `.reg` file by hand, you must update it to match your own executable location, for example:
 
 ```text
 C:\\Tools\\FingerprintBrowserLauncher\\FingerprintBrowserLauncher.exe
 ```
 
-### After editing the `.reg`
-
-Import it:
+Then import it:
 
 ```powershell
 reg import .\Register-FingerprintBrowser.reg
 ```
 
-Then in Windows Default Apps, assign this launcher to:
+In Windows Default Apps, assign this launcher to:
 
 - `HTTP`
 - `HTTPS`
@@ -326,17 +358,20 @@ Your `user-data-dir` may contain stale data from another region. Use a clean dir
 ### DNS leak still exists
 That is usually a proxy / Clash / network-layer issue, not a launcher-only issue.
 
+### The launcher does not appear in Windows Default Apps
+Make sure you imported the generated `.reg` file and then reopen the Default Apps page.
+
 ---
 
 ## New-user recommendation
 
 If you are just trying the project for the first time, start simple:
 
-1. Disable complexity
-2. Use one fixed profile
-3. Confirm the browser starts correctly
-4. Then enable auto-detect by IP
-5. Then test default-browser registration
+1. disable complexity
+2. use one fixed profile
+3. confirm the browser starts correctly
+4. then enable auto-detect by IP
+5. then test default-browser registration
 
 A minimal beginner setup is:
 
