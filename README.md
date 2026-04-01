@@ -105,6 +105,68 @@ dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=
 
 ---
 
+## 一图看懂工作流
+
+```text
+Windows 链接 / 手动启动
+          │
+          ▼
+FingerprintBrowserLauncher.exe
+          │
+          ├─ 读取 config.json
+          │
+          ├─ 是否手动传了 --profile ？
+          │         │
+          │         ├─ 是 → 直接使用指定 profile
+          │         │
+          │         └─ 否 → 查询当前出口 IP
+          │                    │
+          │                    ├─ 查询成功 → countryProfileMap 映射 profile
+          │                    └─ 查询失败 → 回退到 defaultProfile
+          │
+          ▼
+拼接启动参数（fingerprint / lang / timezone / user-data-dir ...）
+          │
+          ▼
+启动 fingerprint-chromium
+          │
+          ▼
+打开目标 URL
+```
+
+---
+
+## 截图建议（可自行补图）
+
+如果你后面想让 README 更直观，建议补这几类截图：
+
+1. **项目目录截图**
+   - 展示 `config.example.json`
+   - 展示 `Install.ps1`
+   - 展示构建输出目录
+
+2. **Install.ps1 运行截图**
+   - 展示自动生成注册表
+   - 展示占位路径提醒
+   - 展示交互式确认
+
+3. **Windows 默认应用截图**
+   - 展示把 `HTTP / HTTPS` 指向这个启动器
+
+4. **BrowserScan 对比截图**
+   - 展示不同出口 IP 下自动切 profile 的效果
+
+建议放在：
+
+```text
+assets/
+  screenshots/
+```
+
+如果后面你真要补图，README 可以再插入 markdown 图片链接。
+
+---
+
 ## 对新人更友好的安装方式
 
 如果你已经编译好了，可以直接用安装脚本准备一个可运行目录，并自动生成适合你本机路径的注册表文件：
@@ -120,6 +182,18 @@ dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=
 - 把 `config.json` 复制到 `dist\`（如果目标目录里还没有）
 - 自动生成本机路径版的注册表文件
 - 检查 `browserPath` 和 `--user-data-dir` 是否还是占位路径
+
+如果你想更顺手一点，可以使用交互模式：
+
+```powershell
+.\Install.ps1 -Interactive
+```
+
+交互模式下会：
+
+- 询问安装目录
+- 发现占位路径时提示你立即打开 `config.json`
+- 询问你是否马上导入注册表
 
 如果你还想让它顺手导入注册表：
 
