@@ -164,8 +164,6 @@ FingerprintBrowserLauncher/
   config.json
   Install.ps1
   Register-FingerprintBrowser.reg
-  Launch-FingerprintBrowser.ps1
-  Launch-FingerprintBrowser.bat
   README.md
 ```
 
