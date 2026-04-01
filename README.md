@@ -163,7 +163,6 @@ FingerprintBrowserLauncher/
   config.example.json
   config.json
   Install.ps1
-  Register-FingerprintBrowser.reg
   README.md
 ```
 
@@ -277,29 +276,27 @@ FingerprintBrowserLauncher.exe --profile hk https://browserscan.net/
 
 ## Windows 默认浏览器注册
 
-仓库里带了一个示例注册表文件：
+这个项目现在**不再维护静态 `.reg` 示例文件**。
 
-- `Register-FingerprintBrowser.reg`
+推荐方式是直接使用：
 
-### 推荐方式
+- `Install.ps1`
 
-优先用 `Install.ps1` 自动生成适合你本机路径的 `.reg` 文件。
+它会根据你本机实际安装目录，自动生成注册表文件并可选导入。
 
-### 手动方式
-
-如果你想自己改 `.reg`，要先把里面的 exe 路径换成你机器上的真实路径，例如：
-
-```text
-C:\\Tools\\FingerprintBrowserLauncher\\FingerprintBrowserLauncher.exe
-```
-
-然后再导入：
+例如：
 
 ```powershell
-reg import .\Register-FingerprintBrowser.reg
+.\Install.ps1 -ImportRegistry
 ```
 
-接着去 Windows 默认应用里，把下面这些关联给它：
+或者安装到固定目录：
+
+```powershell
+.\Install.ps1 -TargetDir "C:\\Tools\\FingerprintBrowserLauncher" -ImportRegistry
+```
+
+执行完成后，再去 Windows 默认应用里，把下面这些关联给它：
 
 - `HTTP`
 - `HTTPS`
@@ -314,7 +311,7 @@ reg import .\Register-FingerprintBrowser.reg
 
 - `config.json`
 
-同时，如果注册表里路径变了，也要重新更新 `.reg`。
+如果你更换了安装目录，建议重新运行一次 `Install.ps1`，让它重新生成对应路径的注册表。 
 
 ---
 
