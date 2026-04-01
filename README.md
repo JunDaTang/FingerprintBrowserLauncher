@@ -1,60 +1,135 @@
 # FingerprintBrowserLauncher
 
-一个给 `fingerprint-chromium` / 定制 Chromium 用的 Windows 启动器。
+A configurable Windows launcher for `fingerprint-chromium` or custom Chromium builds.
 
-它的目标很简单：
+It is designed for people who want to:
 
-- 让浏览器启动参数放在外部配置里，而不是写死在快捷方式里
-- 允许把它注册成默认浏览器的中转器
-- 在启动前根据当前出口 IP 自动选择对应 profile
-- 把 URL 继续透传给真实浏览器
-
-这适合下面这类场景：
-
-- 你有多个国家/地区的浏览器环境（UK / US / HK / IN ...）
-- 你希望同一个启动器在不同代理出口下自动切 profile
-- 你希望 Windows 的 `http/https` 链接默认走这套浏览器环境
+- keep browser launch arguments in an external config file
+- use multiple regional browser profiles
+- automatically select a profile based on current egress IP country
+- register a launcher as the Windows default browser handler
+- forward clicked URLs into the real browser with the right profile
 
 ---
 
-## 当前特性
+## Who is this for?
 
-- 读取外部 `config.json`
-- 支持多个 profile
-- 支持手动指定 `--profile`
-- 支持按出口 IP 自动选择 profile
-- 自动把传入 URL 透传给真实浏览器
-- 可注册为 Windows 默认浏览器处理器
-- 失败时回退到 `defaultProfile`
+This project is useful if you run a Chromium-based browser with custom flags such as:
 
----
+- `--fingerprint=...`
+- `--user-data-dir=...`
+- `--lang=...`
+- `--accept-lang=...`
+- `--timezone=...`
 
-## 工作原理
+Typical use cases:
 
-启动流程：
-
-1. 读取 `config.json`
-2. 如果手动传了 `--profile`，优先使用它
-3. 否则访问 IP 信息接口（默认 `https://ipapi.co/json/`）
-4. 根据 `countryProfileMap` 把国家代码映射到 profile
-5. 如果检测失败，则回退到 `defaultProfile`
-6. 启动真实浏览器，并附上对应 profile 的参数和传入 URL
-
-示例：
-
-- 当前出口 IP 属于 `GB` -> 选 `uk`
-- 当前出口 IP 属于 `HK` -> 选 `hk`
-- 当前出口 IP 属于 `IN` -> 选 `in`
-- 检测超时/失败 -> 回退到 `defaultProfile`
+- fingerprint / antidetect browser workflows
+- multiple country-specific browsing environments
+- using different proxy exit locations with matching browser locale/timezone
+- making those environments accessible through Windows default browser links
 
 ---
 
-## 目录结构
+## Quick start (3 minutes)
+
+### 1. Clone the repository
+
+```powershell
+git clone https://github.com/JunDaTang/FingerprintBrowserLauncher.git
+cd FingerprintBrowserLauncher
+```
+
+### 2. Install .NET 8 SDK
+
+Download from Microsoft or use `winget`:
+
+```powershell
+winget install Microsoft.DotNet.SDK.8
+```
+
+### 3. Copy the example config
+
+```powershell
+Copy-Item .\config.example.json .\config.json
+```
+
+### 4. Edit `config.json`
+
+At minimum, you **must** change:
+
+- `browserPath`
+- every `--user-data-dir=...` path you actually plan to use
+
+Example:
+
+```json
+"browserPath": "C:\\Browsers\\fingerprint-chromium\\chrome.exe"
+```
+
+and:
+
+```json
+"--user-data-dir=C:\\Browsers\\profiles\\profile-uk-1001"
+```
+
+If you do not change these paths, the launcher will fail on your machine.
+
+### 5. Build
+
+```powershell
+dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+```
+
+### 6. Run a test
+
+```powershell
+.\bin\Release\net8.0-windows\win-x64\publish\FingerprintBrowserLauncher.exe https://example.com
+```
+
+---
+
+## First-time setup checklist
+
+Before expecting this project to work, confirm all of the following:
+
+- `.NET 8 SDK` is installed
+- `config.json` exists
+- `browserPath` points to a real browser executable
+- the selected `--user-data-dir` path is valid for your machine
+- your target browser actually supports the flags you configured
+
+If any of these are wrong, the launcher may still start but the browser behavior will not match your expectation.
+
+---
+
+## How it works
+
+Launch flow:
+
+1. Read `config.json`
+2. If `--profile <name>` was passed, use it
+3. Otherwise, if `autoDetectByIp` is enabled, query the IP info API
+4. Map the detected country code using `countryProfileMap`
+5. If detection fails, fall back to `defaultProfile`
+6. Start the real browser and forward the selected profile arguments plus the URL
+
+Example:
+
+- current IP country = `GB` -> select `uk`
+- current IP country = `HK` -> select `hk`
+- current IP country = `IN` -> select `in`
+- lookup timeout / API failure -> fall back to `defaultProfile`
+
+---
+
+## Project structure
 
 ```text
 FingerprintBrowserLauncher/
   FingerprintBrowserLauncher.csproj
   Program.cs
+  config.example.json
   config.json
   Register-FingerprintBrowser.reg
   Launch-FingerprintBrowser.ps1
@@ -62,17 +137,17 @@ FingerprintBrowserLauncher/
   README.md
 ```
 
-`dist/` 是本地发布目录，不建议提交到 git。
+`dist/`, `bin/`, and `obj/` are local build artifacts and are not intended for git.
 
 ---
 
-## 配置说明
+## Configuration reference
 
-`config.json` 核心字段：
+Example config:
 
 ```json
 {
-  "browserPath": "E:\\apps\\ungoogled-chromium_144.0.7559.132-1.1_windows_x64\\chrome.exe",
+  "browserPath": "C:\\path\\to\\fingerprint-chromium\\chrome.exe",
   "defaultProfile": "uk",
   "appendUrlAtEnd": true,
   "autoDetectByIp": true,
@@ -88,7 +163,7 @@ FingerprintBrowserLauncher/
     "uk": {
       "args": [
         "--fingerprint=1001",
-        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-uk-1001",
+        "--user-data-dir=C:\\path\\to\\profiles\\profile-uk-1001",
         "--lang=en-GB",
         "--accept-lang=en-GB,en",
         "--timezone=Europe/London"
@@ -98,20 +173,22 @@ FingerprintBrowserLauncher/
 }
 ```
 
-### 字段说明
+### Main fields
 
-- `browserPath`：真实浏览器 exe 路径
-- `defaultProfile`：自动识别失败时的回退 profile
-- `appendUrlAtEnd`：是否把 URL 附加到参数尾部
-- `autoDetectByIp`：是否启用按出口 IP 自动选 profile
-- `ipInfoUrl`：IP 检测接口
-- `ipLookupTimeoutSeconds`：IP 检测超时秒数
-- `countryProfileMap`：国家代码 -> profile 名称
-- `profiles`：profile 参数表
+- `browserPath`: path to the real browser executable
+- `defaultProfile`: fallback profile when auto detection fails
+- `appendUrlAtEnd`: whether to append incoming URLs after profile args
+- `autoDetectByIp`: enable profile auto-selection by egress IP country
+- `ipInfoUrl`: IP lookup endpoint
+- `ipLookupTimeoutSeconds`: lookup timeout in seconds
+- `countryProfileMap`: map from country code to profile name
+- `profiles`: actual launch argument sets
 
-### profile 说明
+### Profile args
 
-每个 profile 目前是一组原样透传的浏览器启动参数，例如：
+Each profile is just a list of raw browser arguments.
+
+Typical examples:
 
 - `--fingerprint=1001`
 - `--user-data-dir=...`
@@ -119,72 +196,29 @@ FingerprintBrowserLauncher/
 - `--accept-lang=...`
 - `--timezone=...`
 
-建议每个国家/地区使用**独立的 user-data-dir**，避免 profile 之间相互污染。
+**Recommendation:** use a separate `user-data-dir` for each profile. Reusing one directory across multiple regions may leak old locale or profile state.
 
 ---
 
-## 构建
+## Manual profile selection
 
-需要安装 .NET 8 SDK。
-
-```powershell
-dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
-```
-
-发布输出默认在：
-
-```text
-bin\Release\net8.0-windows\win-x64\publish\
-```
-
----
-
-## 本地运行
-
-直接运行：
-
-```powershell
-FingerprintBrowserLauncher.exe https://example.com
-```
-
-手动指定 profile：
+You can bypass auto detection and force a specific profile:
 
 ```powershell
 FingerprintBrowserLauncher.exe --profile hk https://browserscan.net/
 ```
 
-如果不手动指定 profile，程序会：
+This is useful when:
 
-- 先检查当前出口 IP
-- 再自动选 profile
-- 然后启动浏览器
-
----
-
-## Windows 默认浏览器注册
-
-项目包含示例注册表文件：
-
-- `Register-FingerprintBrowser.reg`
-
-导入后，可以在 Windows 默认应用中把这些关联给本启动器：
-
-- `HTTP`
-- `HTTPS`
-- `.htm`
-- `.html`
-
-注意：
-
-1. `.reg` 里的路径需要与你本机实际 exe 路径一致
-2. `config.json` 默认按 **exe 同目录** 查找
-3. 如果移动 exe，记得同时移动 `config.json`，并更新注册表路径
+- you want deterministic testing
+- IP lookup is unavailable
+- you intentionally want a fixed profile regardless of exit IP
 
 ---
 
-## 调试输出
+## Auto-detect by egress IP
 
-当前版本会在控制台打印关键信息，例如：
+When `autoDetectByIp` is enabled, the launcher queries the configured IP info API and prints debug output like this:
 
 ```text
 [Launcher] Manual profile: <none>
@@ -194,35 +228,127 @@ FingerprintBrowserLauncher.exe --profile hk https://browserscan.net/
 [Launcher] Selected profile: hk
 ```
 
-如果自动识别失败，会看到超时或请求错误，然后回退到 `defaultProfile`。
+If the request times out or fails, the launcher falls back to `defaultProfile`.
+
+If your network is slow or proxied, increase:
+
+```json
+"ipLookupTimeoutSeconds": 5
+```
+
+or higher.
 
 ---
 
-## 已知限制
+## Windows default browser registration
 
-### 1. 自动识别依赖外部 IP 接口
-如果 `ipapi.co` 超时或不可达，会回退到默认 profile。
+The repository includes a sample registry file:
 
-### 2. DNS Leak 不是这个启动器能单独解决的
-如果你使用 Clash / 代理工具，DNS 泄漏通常要在代理层配置，而不是在启动器里修。
+- `Register-FingerprintBrowser.reg`
 
-### 3. 某些浏览器指纹残留可能来自 `user-data-dir`
-如果 `Intl API`、语言或其它指纹信号出现旧值，优先检查是否复用了旧 profile 目录。
+### Important
 
-### 4. 已有浏览器实例可能导致测试结果混淆
-测试新 profile 前，建议先关闭旧的同类浏览器实例。
+This file contains a **machine-specific path** and is only a starting example.
+
+Before importing it, you must update it to match your own executable location, for example:
+
+```text
+C:\\Tools\\FingerprintBrowserLauncher\\FingerprintBrowserLauncher.exe
+```
+
+### After editing the `.reg`
+
+Import it:
+
+```powershell
+reg import .\Register-FingerprintBrowser.reg
+```
+
+Then in Windows Default Apps, assign this launcher to:
+
+- `HTTP`
+- `HTTPS`
+- `.htm`
+- `.html`
+
+### Important runtime rule
+
+`config.json` is loaded from the **same directory as the launcher exe**.
+
+So if you move the exe, also move:
+
+- `config.json`
+
+And if your `.reg` points to a new location, update that path too.
 
 ---
 
-## 推荐使用方式
+## Testing
 
-- 给每个国家准备独立 profile 目录
-- 先用 `browserscan.net` 做验证
-- 再接入 Windows 默认浏览器
-- 如果要长期用，建议把 exe 固定放在稳定目录，不要频繁挪位置
+### Basic test
+
+```powershell
+FingerprintBrowserLauncher.exe https://example.com
+```
+
+### Browser fingerprint check
+
+```powershell
+FingerprintBrowserLauncher.exe https://browserscan.net/
+```
+
+Things worth checking on BrowserScan:
+
+- Timezone
+- Languages
+- Accept-Language
+- Intl API
+- WebRTC
+- DNS leak
+- WebGL / GPU exposure
+
+---
+
+## Common problems
+
+### `BrowserPath is invalid`
+Your `browserPath` in `config.json` does not exist on your machine.
+
+### `config.json not found`
+The launcher expects `config.json` next to the exe.
+
+### Auto profile selection sometimes works, sometimes falls back
+Increase `ipLookupTimeoutSeconds`.
+
+### BrowserScan shows the wrong locale even though the profile changed
+Your `user-data-dir` may contain stale data from another region. Use a clean directory per profile.
+
+### DNS leak still exists
+That is usually a proxy / Clash / network-layer issue, not a launcher-only issue.
+
+---
+
+## New-user recommendation
+
+If you are just trying the project for the first time, start simple:
+
+1. Disable complexity
+2. Use one fixed profile
+3. Confirm the browser starts correctly
+4. Then enable auto-detect by IP
+5. Then test default-browser registration
+
+A minimal beginner setup is:
+
+```json
+"autoDetectByIp": false,
+"defaultProfile": "uk"
+```
+
+This is easier to debug than jumping straight into multi-country auto switching.
 
 ---
 
 ## License
 
-暂未指定。
+MIT
