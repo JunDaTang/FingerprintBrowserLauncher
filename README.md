@@ -119,6 +119,7 @@ dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=
 - 把编译好的 exe 复制到 `dist\`
 - 把 `config.json` 复制到 `dist\`（如果目标目录里还没有）
 - 自动生成本机路径版的注册表文件
+- 检查 `browserPath` 和 `--user-data-dir` 是否还是占位路径
 
 如果你还想让它顺手导入注册表：
 
@@ -174,6 +175,7 @@ dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=
 
 ```text
 FingerprintBrowserLauncher/
+  .github/workflows/build.yml
   FingerprintBrowserLauncher.csproj
   Program.cs
   config.example.json

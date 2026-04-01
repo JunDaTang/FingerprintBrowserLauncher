@@ -104,6 +104,35 @@ Write-Host "Generated registry file: $TargetReg"
 Write-Host "Launcher exe: $TargetExe"
 Write-Host "Launcher config: $TargetConfig"
 
+try {
+    $Config = Get-Content $TargetConfig -Raw | ConvertFrom-Json
+
+    $NeedsAttention = $false
+
+    if ($Config.browserPath -match 'C:\\\\path\\\\to\\\\') {
+        Write-Warning "browserPath 仍然是占位路径，请先改成你本机的 fingerprint-chromium / Chromium 可执行文件路径。"
+        $NeedsAttention = $true
+    }
+
+    foreach ($profileName in $Config.profiles.PSObject.Properties.Name) {
+        $profile = $Config.profiles.$profileName
+        foreach ($arg in $profile.args) {
+            if ($arg -match '--user-data-dir=C:\\\\path\\\\to\\\\profiles\\\\') {
+                Write-Warning "profile '$profileName' 的 --user-data-dir 仍然是占位路径，请按你的机器实际目录修改。"
+                $NeedsAttention = $true
+                break
+            }
+        }
+    }
+
+    if ($NeedsAttention) {
+        Write-Host "建议先编辑这个文件： $TargetConfig" -ForegroundColor Yellow
+    }
+}
+catch {
+    Write-Warning "无法解析 $TargetConfig，请手动检查配置内容。"
+}
+
 if ($ImportRegistry) {
     reg import $TargetReg
     Write-Host "Registry imported successfully."
