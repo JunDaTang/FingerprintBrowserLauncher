@@ -1,0 +1,112 @@
+{
+  "browserPath": "E:\\apps\\ungoogled-chromium_144.0.7559.132-1.1_windows_x64\\chrome.exe",
+  "defaultProfile": "uk",
+  "appendUrlAtEnd": true,
+  "autoDetectByIp": true,
+  "ipInfoUrl": "https://ipapi.co/json/",
+  "ipLookupTimeoutSeconds": 5,
+  "countryProfileMap": {
+    "GB": "uk",
+    "US": "us",
+    "JP": "jp",
+    "SG": "sg",
+    "HK": "hk",
+    "DE": "de",
+    "CA": "ca",
+    "TW": "tw",
+    "IN": "in",
+    "CN": "cn"
+  },
+  "profiles": {
+    "uk": {
+      "args": [
+        "--fingerprint=1001",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-uk-1001",
+        "--lang=en-GB",
+        "--accept-lang=en-GB,en",
+        "--timezone=Europe/London"
+      ]
+    },
+    "cn": {
+      "args": [
+        "--fingerprint=1002",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-cn-1002",
+        "--lang=zh-CN",
+        "--accept-lang=zh-CN,zh,en-US",
+        "--timezone=Asia/Shanghai"
+      ]
+    },
+    "us": {
+      "args": [
+        "--fingerprint=1003",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-us-1003",
+        "--lang=en-US",
+        "--accept-lang=en-US,en",
+        "--timezone=America/New_York"
+      ]
+    },
+    "jp": {
+      "args": [
+        "--fingerprint=1004",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-jp-1004",
+        "--lang=ja-JP",
+        "--accept-lang=ja-JP,ja,en-US",
+        "--timezone=Asia/Tokyo"
+      ]
+    },
+    "sg": {
+      "args": [
+        "--fingerprint=1005",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-sg-1005",
+        "--lang=en-SG",
+        "--accept-lang=en-SG,en",
+        "--timezone=Asia/Singapore"
+      ]
+    },
+    "hk": {
+      "args": [
+        "--fingerprint=1006",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-hk-1006",
+        "--lang=zh-HK",
+        "--accept-lang=zh-HK,zh,en",
+        "--timezone=Asia/Hong_Kong"
+      ]
+    },
+    "de": {
+      "args": [
+        "--fingerprint=1007",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-de-1007",
+        "--lang=de-DE",
+        "--accept-lang=de-DE,de,en",
+        "--timezone=Europe/Berlin"
+      ]
+    },
+    "ca": {
+      "args": [
+        "--fingerprint=1008",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-ca-1008",
+        "--lang=en-CA",
+        "--accept-lang=en-CA,en",
+        "--timezone=America/Toronto"
+      ]
+    },
+    "tw": {
+      "args": [
+        "--fingerprint=1009",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-tw-1009",
+        "--lang=zh-TW",
+        "--accept-lang=zh-TW,zh,en",
+        "--timezone=Asia/Taipei"
+      ]
+    },
+    "in": {
+      "args": [
+        "--fingerprint=1010",
+        "--user-data-dir=E:\\ungoogled-chromium-fp\\profile-in-1010",
+        "--lang=en-IN",
+        "--accept-lang=en-IN,en",
+        "--timezone=Asia/Kolkata"
+      ]
+    }
+  }
+}
