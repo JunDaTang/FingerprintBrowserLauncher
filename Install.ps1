@@ -4,79 +4,144 @@ param(
     [switch]$Interactive
 )
 
+Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+function Write-Title {
+    param([string]$Text)
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host $Text -ForegroundColor Cyan
+    Write-Host "========================================" -ForegroundColor Cyan
+}
+
+function Write-Success {
+    param([string]$Text)
+    Write-Host "[OK] $Text" -ForegroundColor Green
+}
+
+function Write-Warning-Custom {
+    param([string]$Text)
+    Write-Host "[WARN] $Text" -ForegroundColor Yellow
+}
+
+function Write-Error-Custom {
+    param([string]$Text)
+    Write-Host "[ERROR] $Text" -ForegroundColor Red
+}
 
 function Ask-YesNo {
     param(
         [string]$Message,
         [bool]$Default = $true
     )
-
     $suffix = if ($Default) { '[Y/n]' } else { '[y/N]' }
     $inputValue = Read-Host "$Message $suffix"
-
     if ([string]::IsNullOrWhiteSpace($inputValue)) {
         return $Default
     }
-
     return $inputValue.Trim().ToLowerInvariant() -in @('y', 'yes')
 }
+
+Write-Title "FingerprintBrowserLauncher Installation"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if ([string]::IsNullOrWhiteSpace($TargetDir)) {
+    $TargetDir = Join-Path $ScriptDir 'dist'
     if ($Interactive) {
-        $suggested = Join-Path $ScriptDir 'dist'
-        $entered = Read-Host "安装目录（直接回车使用默认值：$suggested）"
-        if ([string]::IsNullOrWhiteSpace($entered)) {
-            $TargetDir = $suggested
-        }
-        else {
+        Write-Host "Installation directory: (press Enter for default)" -ForegroundColor Yellow
+        $entered = Read-Host "  Path"
+        if (-not [string]::IsNullOrWhiteSpace($entered)) {
             $TargetDir = $entered
         }
     }
-    else {
-        $TargetDir = Join-Path $ScriptDir 'dist'
-    }
 }
+
+Write-Host "Using directory: $TargetDir" -ForegroundColor Gray
 
 if (-not (Test-Path $TargetDir)) {
     New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+    Write-Success "Created directory"
 }
 
 $SourceExe = Join-Path $ScriptDir 'bin\Release\net8.0-windows\win-x64\publish\FingerprintBrowserLauncher.exe'
+if (-not (Test-Path $SourceExe)) {
+    Write-Error-Custom "Compiled launcher not found: $SourceExe"
+    Write-Host "Run: dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true" -ForegroundColor Yellow
+    exit 1
+}
+Write-Success "Found compiled executable"
+
 $SourceConfig = Join-Path $ScriptDir 'config.json'
 $ExampleConfig = Join-Path $ScriptDir 'config.example.json'
-
-if (-not (Test-Path $SourceExe)) {
-    throw "Compiled launcher not found: $SourceExe`n请先运行 dotnet publish。"
-}
-
-if (-not (Test-Path $SourceConfig) -and -not (Test-Path $ExampleConfig)) {
-    throw "未找到 config.json 或 config.example.json。"
-}
-
 $TargetExe = Join-Path $TargetDir 'FingerprintBrowserLauncher.exe'
 $TargetConfig = Join-Path $TargetDir 'config.json'
-$TargetReg = Join-Path $TargetDir 'Register-FingerprintBrowser.reg'
+
+if (-not (Test-Path $SourceConfig) -and -not (Test-Path $ExampleConfig)) {
+    Write-Error-Custom "config.json or config.example.json not found"
+    exit 1
+}
 
 Copy-Item $SourceExe $TargetExe -Force
+Write-Success "Copied executable"
 
 if (Test-Path $SourceConfig) {
     if (-not (Test-Path $TargetConfig)) {
         Copy-Item $SourceConfig $TargetConfig -Force
-        Write-Host "已复制 config.json 到 $TargetConfig"
+        Write-Success "Copied config.json"
     }
     else {
-        Write-Host "目标目录里已存在 config.json，保留现有文件。"
+        Write-Warning-Custom "config.json already exists, keeping it"
     }
 }
-elseif (-not (Test-Path $TargetConfig)) {
+else {
     Copy-Item $ExampleConfig $TargetConfig -Force
-    Write-Host "已复制 config.example.json 到 $TargetConfig"
+    Write-Success "Copied config.example.json"
 }
 
+Write-Host ""
+Write-Host "Checking configuration..." -ForegroundColor Gray
+
+$ConfigIssues = $false
+try {
+    $Config = Get-Content $TargetConfig -Raw | ConvertFrom-Json
+
+    if ($Config.browserPath -like '*C:\path\to*' -or $Config.browserPath -like '*placeholder*') {
+        Write-Warning-Custom "browserPath is still a placeholder"
+        $ConfigIssues = $true
+    }
+
+    foreach ($profileName in $Config.profiles.PSObject.Properties.Name) {
+        $profile = $Config.profiles.$profileName
+        foreach ($arg in $profile.args) {
+            if ($arg -like '*--user-data-dir=*C:\path\to*') {
+                Write-Warning-Custom "Profile '$profileName' has placeholder user-data-dir"
+                $ConfigIssues = $true
+                break
+            }
+        }
+    }
+
+    if (-not $ConfigIssues) {
+        Write-Success "Configuration looks good"
+    }
+}
+catch {
+    Write-Warning-Custom "Could not parse config.json - check manually"
+}
+
+if ($ConfigIssues -and $Interactive) {
+    if (Ask-YesNo -Message "Open config.json?" -Default $true) {
+        Start-Process notepad.exe $TargetConfig
+    }
+}
+
+Write-Host ""
+Write-Host "Generating registry file..." -ForegroundColor Gray
+
 $ExePathEscaped = ($TargetExe -replace '\\', '\\\\')
+$TargetReg = Join-Path $TargetDir 'Register-Browser.reg'
 
 $RegContent = @"
 Windows Registry Editor Version 5.00
@@ -88,27 +153,27 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Classes\FingerprintBrowserLauncherHTML\DefaultIcon]
 @="$ExePathEscaped,0"
 
-[HKEY_CURRENT_USER\Software\Classes\FingerprintBrowserLauncherHTML\shell]
-
-[HKEY_CURRENT_USER\Software\Classes\FingerprintBrowserLauncherHTML\shell\open]
-
 [HKEY_CURRENT_USER\Software\Classes\FingerprintBrowserLauncherHTML\shell\open\command]
-@="\"$ExePathEscaped\" \"%1\""
+@=`"\"$ExePathEscaped\" \"%1\"`"
+
+[HKEY_CURRENT_USER\Software\Classes\http\shell\open\command]
+@=`"\"$ExePathEscaped\" \"%1\"`"
+
+[HKEY_CURRENT_USER\Software\Classes\https\shell\open\command]
+@=`"\"$ExePathEscaped\" \"%1\"`"
+
+[HKEY_CURRENT_USER\Software\Classes\htm\shell\open\command]
+@=`"\"$ExePathEscaped\" \"%1\"`"
+
+[HKEY_CURRENT_USER\Software\Classes\html\shell\open\command]
+@=`"\"$ExePathEscaped\" \"%1\"`"
 
 [HKEY_CURRENT_USER\Software\Clients\StartMenuInternet\FingerprintBrowserLauncher]
 @="Fingerprint Browser Launcher"
 
 [HKEY_CURRENT_USER\Software\Clients\StartMenuInternet\FingerprintBrowserLauncher\Capabilities]
 "ApplicationName"="Fingerprint Browser Launcher"
-"ApplicationDescription"="Launch fingerprint Chromium with external profile config"
-"Hidden"=dword:00000000
-
-[HKEY_CURRENT_USER\Software\Clients\StartMenuInternet\FingerprintBrowserLauncher\Capabilities\FileAssociations]
-".htm"="FingerprintBrowserLauncherHTML"
-".html"="FingerprintBrowserLauncherHTML"
-".shtml"="FingerprintBrowserLauncherHTML"
-".xht"="FingerprintBrowserLauncherHTML"
-".xhtml"="FingerprintBrowserLauncherHTML"
+"ApplicationDescription"="Launch Chromium with multi-region profiles"
 
 [HKEY_CURRENT_USER\Software\Clients\StartMenuInternet\FingerprintBrowserLauncher\Capabilities\URLAssociations]
 "http"="FingerprintBrowserLauncherHTML"
@@ -117,65 +182,42 @@ Windows Registry Editor Version 5.00
 [HKEY_CURRENT_USER\Software\Clients\StartMenuInternet\FingerprintBrowserLauncher\DefaultIcon]
 @="$ExePathEscaped,0"
 
-[HKEY_CURRENT_USER\Software\Clients\StartMenuInternet\FingerprintBrowserLauncher\shell]
-
-[HKEY_CURRENT_USER\Software\Clients\StartMenuInternet\FingerprintBrowserLauncher\shell\open]
-
 [HKEY_CURRENT_USER\Software\Clients\StartMenuInternet\FingerprintBrowserLauncher\shell\open\command]
-@="\"$ExePathEscaped\""
-
-[HKEY_CURRENT_USER\Software\RegisteredApplications]
-"Fingerprint Browser Launcher"="Software\\Clients\\StartMenuInternet\\FingerprintBrowserLauncher\\Capabilities"
+@=`"\"$ExePathEscaped\"`"
 "@
 
 Set-Content -Path $TargetReg -Value $RegContent -Encoding ASCII
-Write-Host "已生成注册表文件：$TargetReg"
-Write-Host "Launcher exe：$TargetExe"
-Write-Host "Launcher config：$TargetConfig"
+Write-Success "Generated registry file"
 
-$NeedsAttention = $false
-
-try {
-    $Config = Get-Content $TargetConfig -Raw | ConvertFrom-Json
-
-    if ($Config.browserPath -match 'C:\\\\path\\\\to\\\\') {
-        Write-Warning "browserPath 仍然是占位路径，请先改成你本机的 fingerprint-chromium / Chromium 可执行文件路径。"
-        $NeedsAttention = $true
-    }
-
-    foreach ($profileName in $Config.profiles.PSObject.Properties.Name) {
-        $profile = $Config.profiles.$profileName
-        foreach ($arg in $profile.args) {
-            if ($arg -match '--user-data-dir=C:\\\\path\\\\to\\\\profiles\\\\') {
-                Write-Warning "profile '$profileName' 的 --user-data-dir 仍然是占位路径，请按你的机器实际目录修改。"
-                $NeedsAttention = $true
-                break
-            }
-        }
-    }
-
-    if ($NeedsAttention) {
-        Write-Host "建议先编辑这个文件：$TargetConfig" -ForegroundColor Yellow
-        if ($Interactive -and Ask-YesNo -Message '是否现在打开 config.json 方便你立即修改？' -Default $true) {
-            Start-Process notepad.exe $TargetConfig
-        }
-    }
-}
-catch {
-    Write-Warning "无法解析 $TargetConfig，请手动检查配置内容。"
-}
-
+Write-Host ""
 if (-not $ImportRegistry -and $Interactive) {
-    $ImportRegistry = Ask-YesNo -Message '是否现在导入注册表？' -Default $true
+    $ImportRegistry = Ask-YesNo -Message "Import registry now?" -Default $true
 }
 
 if ($ImportRegistry) {
-    reg import $TargetReg
-    Write-Host "注册表已导入成功。"
+    try {
+        reg import $TargetReg *>$null
+        Write-Success "Registry imported"
+    }
+    catch {
+        Write-Warning-Custom "Registry import may have failed"
+        Write-Host "  Try manually: reg import `"$TargetReg`"" -ForegroundColor Yellow
+    }
 }
 else {
-    Write-Host "暂未导入注册表。你之后可以手动执行："
-    Write-Host "reg import `"$TargetReg`""
+    Write-Host "Registry file ready: $TargetReg" -ForegroundColor Gray
+    Write-Host "Import later with: reg import `"$TargetReg`"" -ForegroundColor Gray
 }
 
-Write-Host "下一步：去 Windows 默认应用里，把 HTTP / HTTPS / .htm / .html 指向 Fingerprint Browser Launcher。"
+Write-Title "Installation Complete"
+Write-Host "Executable: $TargetExe" -ForegroundColor Gray
+Write-Host "Config file: $TargetConfig" -ForegroundColor Gray
+Write-Host "Registry file: $TargetReg" -ForegroundColor Gray
+Write-Host ""
+Write-Host "Next steps:" -ForegroundColor Cyan
+Write-Host "1. Open Windows Settings (Win+I)" -ForegroundColor White
+Write-Host "2. Go to Apps > Default apps" -ForegroundColor White
+Write-Host "3. Find 'Fingerprint Browser Launcher'" -ForegroundColor White
+Write-Host "4. Set as default for HTTP and HTTPS" -ForegroundColor White
+Write-Host ""
+Write-Host "Test with: .\dist\FingerprintBrowserLauncher.exe https://browserscan.net/" -ForegroundColor Yellow

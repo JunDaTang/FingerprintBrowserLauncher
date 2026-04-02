@@ -64,6 +64,16 @@ cd FingerprintBrowserLauncher
 winget install Microsoft.DotNet.SDK.8
 ```
 
+### 2.5）初始化环境（推荐）
+
+运行初始化脚本，自动配置 NuGet 源和检查环境：
+
+```powershell
+.\setup.ps1
+```
+
+这一步会自动处理 NuGet 源配置问题，避免后续发布时出现 `NU1100` 错误。
+
 ### 3）复制示例配置
 
 ```powershell
@@ -91,16 +101,17 @@ Copy-Item .\config.example.json .\config.json
 
 **如果你不改这些路径，项目在你的机器上大概率无法直接运行。**
 
-### 5）编译
+### 5）编译和安装
 
 ```powershell
 dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+.\Install.ps1
 ```
 
 ### 6）先跑一个最简单的测试
 
 ```powershell
-.\bin\Release\net8.0-windows\win-x64\publish\FingerprintBrowserLauncher.exe https://example.com
+.\dist\FingerprintBrowserLauncher.exe https://example.com
 ```
 
 ---
@@ -457,13 +468,20 @@ FingerprintBrowserLauncher.exe https://browserscan.net/
 
 ## 常见问题
 
-### `BrowserPath is invalid`
-说明 `config.json` 里的 `browserPath` 在你的机器上不存在。
-
 ### `config.json not found`
 说明程序没有在 exe 同目录找到 `config.json`。
 
-### 自动选 profile 有时成功，有时回退
+### `NU1100: 无法解析...`
+发布自包含版本时出现此错误，说明 NuGet 源未配置。解决方法：
+
+```powershell
+dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org
+dotnet nuget locals all --clear
+```
+
+然后重新运行发布命令。你也可以在项目初期运行 `.\setup.ps1` 来避免此问题。
+
+### `BrowserPath is invalid`
 通常是 IP 查询超时，调大 `ipLookupTimeoutSeconds`。
 
 ### BrowserScan 显示语言/地区没完全切干净
